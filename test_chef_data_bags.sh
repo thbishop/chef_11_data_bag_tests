@@ -12,7 +12,7 @@ case "$1" in
   *) echo 'Unknown Chef version'
      exit 1
      ;;
- esac
+esac
 
 rpm -ivh https://opscode-omnibus-packages.s3.amazonaws.com/el/6/x86_64/chef-$CHEF_VERSION.el6.x86_64.rpm
 
@@ -22,8 +22,16 @@ cd /vagrant
 
 rm -f data_bags/DATABAG/DATABAGITEM.json
 
-/opt/chef/bin/knife solo data bag create DATABAG DATABAGITEM --json '{ "id": "DATABAGITEM", "foo": "bar" }' --data-bag-path data_bags/
+if [ "$ENCRYPT_DATA_BAGS" == "yes" ]; then
+  echo "Going to encrypt the data bag"
+  DATA_BAG_ENCRYPT_OPTION=" -s foo"
+else
+  DATA_BAG_ENCRYPT_OPTION=""
+fi
 
-chef-solo -o 'recipe[test]' -c config.rb -l info
+/opt/chef/bin/knife solo data bag create DATABAG DATABAGITEM --json '{ "id": "DATABAGITEM", "foo": "bar" }' --data-bag-path data_bags/ $DATA_BAG_ENCRYPT_OPTION
 
+echo "Data bag contents:"
+cat data_bags/DATABAG/DATABAGITEM.json
 
+chef-solo -o 'recipe[test]' -c config.rb -l info $DATA_BAG_ENCRYPT_OPTION

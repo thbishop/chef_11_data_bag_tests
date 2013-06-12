@@ -14,7 +14,8 @@ case "$1" in
      ;;
 esac
 
-rpm -ivh https://opscode-omnibus-packages.s3.amazonaws.com/el/6/x86_64/chef-$CHEF_VERSION.el6.x86_64.rpm
+BASE_RPM_URL=https://opscode-omnibus-packages.s3.amazonaws.com/el/6/x86_64
+rpm -ivh $BASE_RPM_URL/chef-$CHEF_VERSION.el6.x86_64.rpm
 
 /opt/chef/embedded/bin/gem install knife-solo_data_bag --no-rdoc --no-ri
 
@@ -24,14 +25,20 @@ rm -f data_bags/DATABAG/DATABAGITEM.json
 
 if [ "$ENCRYPT_DATA_BAGS" == "yes" ]; then
   echo "Going to encrypt the data bag"
-  DATA_BAG_ENCRYPT_OPTION=" -s foo"
+  CHEF_RECIPE="test::encrypted"
+  DATA_BAG_ENCRYPT_OPTION="-s foo"
+  mkdir /etc/chef
+  echo foo > /etc/chef/encrypted_data_bag_secret
 else
+  CHEF_RECIPE="test"
   DATA_BAG_ENCRYPT_OPTION=""
 fi
 
-/opt/chef/bin/knife solo data bag create DATABAG DATABAGITEM --json '{ "id": "DATABAGITEM", "foo": "bar" }' --data-bag-path data_bags/ $DATA_BAG_ENCRYPT_OPTION
+/opt/chef/bin/knife solo data bag create DATABAG DATABAGITEM \
+  --json '{ "id": "DATABAGITEM", "foo": "bar" }' \
+  --data-bag-path data_bags/ $DATA_BAG_ENCRYPT_OPTION
 
 echo "Data bag contents:"
 cat data_bags/DATABAG/DATABAGITEM.json
 
-chef-solo -o 'recipe[test]' -c config.rb -l info $DATA_BAG_ENCRYPT_OPTION
+chef-solo -o "recipe[$CHEF_RECIPE]" -c config.rb -l info
